@@ -4,7 +4,7 @@
 
 const CONFIG = {
     // VK App ID (замените на свой)
-    VK_APP_ID: 54372366, // Пример, замените на ваш
+    VK_APP_ID: 54372400, // Пример, замените на ваш
     
 
     // Google Sheets API
