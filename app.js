@@ -155,7 +155,7 @@ function openVKIDPopup() {
     const clientId = CONFIG.VK_APP_ID;
     
     // Используем VK ID (новая система авторизации VK)
-    const vkidUrl = `https://id.vk.com/auth?app_id=${clientId}&response_type=silent_token&redirect_uri=${encodeURIComponent(redirectUri)}&state=vkid_auth`;
+    const vkidUrl = `https://id.vk.ru/auth?app_id=${clientId}&response_type=silent_token&redirect_uri=${encodeURIComponent(redirectUri)}&state=vkid_auth`;
     
     console.log('🔗 VK ID URL:', vkidUrl);
     console.log('📍 Redirect URI:', redirectUri);
@@ -209,7 +209,7 @@ async function checkVKIDAuth() {
             
             // Если есть токен и userId - получаем данные через API
             if (token && userId) {
-                const userInfo = await fetch(`https://api.vk.com/method/users.get?user_ids=${userId}&fields=photo_200&access_token=${token}&v=5.199`)
+                const userInfo = await fetch(`https://api.vk.ru/method/users.get?user_ids=${userId}&fields=photo_200&access_token=${token}&v=5.199`)
                     .then(res => res.json());
                 
                 if (userInfo.response?.[0]) {
@@ -1510,7 +1510,7 @@ async function sendToVKChat(message) {
     }
     
     try {
-        const response = await fetch(`https://api.vk.com/method/messages.send`, {
+        const response = await fetch(`https://api.vk.ru/method/messages.send`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
