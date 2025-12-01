@@ -62,17 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================
 
 async function checkAuth() {
-    // Сначала проверяем, не пришли ли мы с VK OAuth
-    const hasCallback = await handleVKCallback();
-    
-    if (hasCallback) {
-        // Авторизация прошла через callback
-        return;
-    }
-    
-    // Проверяем локальное хранилище
     const vkUser = localStorage.getItem('vk_user');
-    
+
     if (vkUser) {
         const user = JSON.parse(vkUser);
         await loadUserData(user);
@@ -81,6 +72,8 @@ async function checkAuth() {
         showLogin();
     }
 }
+
+
 
 function showLogin() {
     document.getElementById('login-screen').style.display = 'block';
@@ -111,161 +104,114 @@ function showApp() {
     initializeApp();
 }
 
-// ============================================
-// УНИВЕРСАЛЬНАЯ АВТОРИЗАЦИЯ VK
-// Работает на обычных сайтах и в VK Mini Apps
-// ============================================
+// ================================
+// Универсальная авторизация VK ID
+// Через OneTap + Popup fallback
+// ================================
 
-async function loginWithVK() {
-    try {
-        console.log('🔐 Начинаем авторизацию через VK...');
-        
-        // Способ 1: Простое окно VK ID (работает везде)
-        openVKIDPopup();
-        
-    } catch (error) {
-        console.error('❌ Ошибка входа:', error);
-        showNotification('Ошибка входа через VK', 'error');
-        
-        // Запасной вариант: тестовый режим
-        console.log('⚠️ Используем тестовый режим для демонстрации');
-        const testUser = {
-            id: Date.now(), // Уникальный ID
-            first_name: 'Тестовый',
-            last_name: 'Пользователь',
-            photo_200: ''
-        };
-        localStorage.setItem('vk_user', JSON.stringify(testUser));
-        await createOrUpdateUser(testUser);
-        await loadUserData(testUser);
-        showApp();
-        showNotification('🧪 Демо-режим: тестовый пользователь', 'info');
-    }
-}
-
-// Открытие VK ID в popup окне (универсальный метод)
-function openVKIDPopup() {
-    const width = 650;
-    const height = 600;
-    const left = (screen.width - width) / 2;
-    const top = (screen.height - height) / 2;
-    
-    // VK ID URL (новый способ авторизации)
-    const redirectUri = window.location.origin + window.location.pathname;
-    const clientId = CONFIG.VK_APP_ID;
-    
-    // Используем VK ID (новая система авторизации VK)
-    const vkidUrl = `https://id.vk.ru/auth?app_id=${clientId}&response_type=silent_token&redirect_uri=${encodeURIComponent(redirectUri)}&state=vkid_auth`;
-    
-    console.log('🔗 VK ID URL:', vkidUrl);
-    console.log('📍 Redirect URI:', redirectUri);
-    
-    // Открываем popup
-    const popup = window.open(
-        vkidUrl,
-        'VK ID',
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
-    );
-    
-    if (!popup) {
-        // Если браузер блокирует popup - используем обычное перенаправление
-        console.log('⚠️ Popup заблокирован, используем redirect');
-        window.location.href = vkidUrl;
+async function initVKIDAuth() {
+    if (!window.VKIDSDK) {
+        console.error('VKID SDK не загружен');
         return;
     }
-    
-    // Следим за закрытием popup
-    const checkPopup = setInterval(() => {
-        if (popup.closed) {
-            clearInterval(checkPopup);
-            console.log('🔍 Popup закрыт, проверяем авторизацию');
-            checkVKIDAuth();
+
+    const VKID = window.VKIDSDK;
+
+    VKID.Config.init({
+        app: CONFIG.VK_APP_ID,
+        redirectUrl: window.location.href,
+
+        responseMode: VKID.ConfigResponseMode.Callback,
+        source: VKID.ConfigSource.WEB,
+        scope: '',
+    });
+
+    console.log('🔧 VK ID инициализирован');
+
+    renderOneTap(VKID);
+}
+
+// ================================
+// OneTap авторизация
+// ================================
+
+function renderOneTap(VKID) {
+    const oneTap = new VKID.OneTap();
+
+    oneTap.render({
+        container: document.querySelector('#vkid-auth'),
+        showAlternativeLogin: true
+    })
+
+    .on(VKID.WidgetEvents.ERROR, (e) => {
+        console.error('❌ OneTap ошибка', e);
+        showNotification('Ошибка OneTap', 'error');
+    })
+
+    .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, async (payload) => {
+        console.log('✅ OneTap успешно → получаем code');
+
+        const { code, device_id } = payload;
+
+        try {
+            const data = await VKID.Auth.exchangeCode(code, device_id);
+            console.log('🎉 OneTap обмен успешен', data);
+            await handleVKIDSuccess(data);
+        } catch (err) {
+            console.error('❌ Ошибка обмена кода', err);
+            showNotification('Ошибка входа', 'error');
         }
-    }, 500);
+    });
 }
 
-// Проверка VK ID авторизации
-async function checkVKIDAuth() {
-    try {
-        // VK ID возвращает payload в URL или через postMessage
-        const urlParams = new URLSearchParams(window.location.search);
-        const hash = window.location.hash.substring(1);
-        const hashParams = new URLSearchParams(hash);
-        
-        // Проверяем разные источники токена
-        const payload = urlParams.get('payload') || hashParams.get('payload');
-        const token = urlParams.get('token') || hashParams.get('token');
-        const userId = urlParams.get('user_id') || hashParams.get('user_id');
-        
-        if (payload || token || userId) {
-            console.log('✅ Получены данные от VK ID');
-            
-            // Если есть payload - парсим его
-            if (payload) {
-                const data = JSON.parse(atob(payload));
-                await processVKUser(data.user);
-                return;
-            }
-            
-            // Если есть токен и userId - получаем данные через API
-            if (token && userId) {
-                const userInfo = await fetch(`https://api.vk.ru/method/users.get?user_ids=${userId}&fields=photo_200&access_token=${token}&v=5.199`)
-                    .then(res => res.json());
-                
-                if (userInfo.response?.[0]) {
-                    await processVKUser(userInfo.response[0]);
-                    return;
-                }
-            }
-        }
-        
-        console.log('ℹ️ Нет данных авторизации');
-    } catch (error) {
-        console.error('❌ Ошибка проверки VK ID:', error);
-    }
+// ================================
+// Обработка успешной авторизации
+// ================================
+
+async function handleVKIDSuccess(data) {
+    const user = data.user;
+
+    const userData = {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        photo_200: user.photo_200 || ''
+    };
+
+    console.log('👤 Пользователь VKID:', userData);
+
+    localStorage.setItem('vk_user', JSON.stringify(userData));
+
+    await createOrUpdateUser(userData);
+    await logAction(userData.id, 'login', 'Вход через VK ID');
+
+    await loadUserData(userData);
+    showApp();
+
+    showNotification(`Добро пожаловать, ${userData.first_name}!`, 'success');
 }
 
-// Обработка данных пользователя VK
-async function processVKUser(vkUserData) {
-    try {
-        const userData = {
-            id: vkUserData.id || vkUserData.user_id,
-            first_name: vkUserData.first_name,
-            last_name: vkUserData.last_name,
-            photo_200: vkUserData.photo_200 || ''
-        };
-        
-        console.log('✅ Данные пользователя получены:', userData);
-        
-        // Сохраняем
-        localStorage.setItem('vk_user', JSON.stringify(userData));
-        
-        // Создаём в базе
-        await createOrUpdateUser(userData);
-        
-        // Логируем вход
-        await logAction(userData.id, 'login', 'Вход в систему');
-        
-        // Очищаем URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        // Показываем приложение
-        await loadUserData(userData);
-        showApp();
-        
-        showNotification('Добро пожаловать, ' + userData.first_name + '!', 'success');
-    } catch (error) {
-        console.error('❌ Ошибка обработки пользователя:', error);
-        showNotification('Ошибка при входе', 'error');
-    }
+// ================================
+// Popup fallback (если OneTap не сработал)
+// ================================
+
+function loginWithVK() {
+    console.log('🔐 Вход через VK...');
+
+    const VKID = window.VKIDSDK;
+
+    VKID.Auth.login()
+        .then(handleVKIDSuccess)
+        .catch(err => {
+            console.error('❌ Popup VK ID ошибка', err);
+            showNotification('Ошибка входа', 'error');
+        });
 }
 
-// Обработка callback от VK (старый метод, оставляем для совместимости)
-async function handleVKCallback() {
-    // Проверяем VK ID
-    await checkVKIDAuth();
-    return false;
-}
+// ================================
+
+initVKIDAuth();
+
 
 function logout() {
     localStorage.removeItem('vk_user');

@@ -8,6 +8,8 @@
     
     <!-- Google Sheets API -->
     <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+
 </head>
 <body>
     <!-- Экран загрузки -->
@@ -19,34 +21,36 @@
     </div>
 
     <!-- Экран входа -->
-    <div id="login-screen" class="screen" style="display: none;">
-        <div class="login-container">
-            <div class="login-card">
-                <div class="logo">
-                    <span class="logo-icon">🚗</span>
-                    <h1>Автопарк</h1>
-                </div>
-                <p class="subtitle">Система управления автомобилями</p>
-                <button id="vk-login-btn" class="btn btn-primary btn-large">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M13.162 18.994c.609 0 .858-.406.851-.915-.031-1.917.714-2.949 2.059-1.604 1.488 1.488 1.796 2.519 3.603 2.519h3.2c.808 0 1.126-.26 1.126-.668 0-.863-1.421-2.386-2.625-3.504-1.686-1.565-1.765-1.602-.313-3.486 1.801-2.339 4.157-5.336 2.073-5.336h-3.981c-.772 0-.828.435-1.103 1.083-.995 2.347-2.886 5.387-3.604 4.922-.751-.485-.407-2.406-.35-5.261.015-.754.011-1.271-1.141-1.539-.629-.145-1.241-.205-1.809-.205-2.273 0-3.841.953-2.95 1.119 1.571.293 1.42 3.692 1.054 5.16-.638 2.556-3.036-2.024-4.035-4.305-.241-.548-.315-.974-1.175-.974h-3.255c-.492 0-.787.16-.787.516 0 .602 2.96 6.72 5.786 9.77 2.756 2.975 5.48 2.708 7.376 2.708z"/>
-                    </svg>
-                    Войти через VK
-                </button>
-                <button id="test-login-btn" class="btn btn-ghost btn-large" style="margin-top: 12px;">
-                    🧪 Войти в демо-режиме
-                </button>
-                <p style="color: var(--text-muted); font-size: 13px; margin-top: 12px;">
-                    Демо-режим для тестирования без VK
-                </p>
-                <div class="features">
-                    <div class="feature">✓ Учёт автомобилей</div>
-                    <div class="feature">✓ История использования</div>
-                    <div class="feature">✓ Статистика и отчёты</div>
-                </div>
+<div id="login-screen" class="screen" style="display: none;">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <span class="logo-icon">🚗</span>
+                <h1>Автопарк</h1>
+            </div>
+            <p class="subtitle">Система управления автомобилями</p>
+
+
+            <!-- 🔥 Новый элемент — сюда рендерится OneTap -->
+            <div id="vkid-auth" style="margin-top: 20px;"></div>
+
+            <button id="test-login-btn" class="btn btn-ghost btn-large" style="margin-top: 12px;">
+                🧪 Войти в демо-режиме
+            </button>
+
+            <p style="color: var(--text-muted); font-size: 13px; margin-top: 12px;">
+                Демо-режим для тестирования без VK
+            </p>
+
+            <div class="features">
+                <div class="feature">✓ Учёт автомобилей</div>
+                <div class="feature">✓ История использования</div>
+                <div class="feature">✓ Статистика и отчёты</div>
             </div>
         </div>
     </div>
+</div>
+
 
     <!-- Главное приложение -->
     <div id="app-screen" class="screen" style="display: none;">
