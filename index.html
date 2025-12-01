@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚗 Автопарк - Система учёта</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Google Sheets API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+</head>
+<body>
+    <!-- Экран загрузки -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="car-animation">🚗💨</div>
+            <h2>Загрузка...</h2>
+        </div>
+    </div>
+
+    <!-- Экран входа -->
+    <div id="login-screen" class="screen" style="display: none;">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="logo">
+                    <span class="logo-icon">🚗</span>
+                    <h1>Автопарк</h1>
+                </div>
+                <p class="subtitle">Система управления автомобилями</p>
+                <button id="vk-login-btn" class="btn btn-primary btn-large">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13.162 18.994c.609 0 .858-.406.851-.915-.031-1.917.714-2.949 2.059-1.604 1.488 1.488 1.796 2.519 3.603 2.519h3.2c.808 0 1.126-.26 1.126-.668 0-.863-1.421-2.386-2.625-3.504-1.686-1.565-1.765-1.602-.313-3.486 1.801-2.339 4.157-5.336 2.073-5.336h-3.981c-.772 0-.828.435-1.103 1.083-.995 2.347-2.886 5.387-3.604 4.922-.751-.485-.407-2.406-.35-5.261.015-.754.011-1.271-1.141-1.539-.629-.145-1.241-.205-1.809-.205-2.273 0-3.841.953-2.95 1.119 1.571.293 1.42 3.692 1.054 5.16-.638 2.556-3.036-2.024-4.035-4.305-.241-.548-.315-.974-1.175-.974h-3.255c-.492 0-.787.16-.787.516 0 .602 2.96 6.72 5.786 9.77 2.756 2.975 5.48 2.708 7.376 2.708z"/>
+                    </svg>
+                    Войти через VK
+                </button>
+                <div class="features">
+                    <div class="feature">✓ Учёт автомобилей</div>
+                    <div class="feature">✓ История использования</div>
+                    <div class="feature">✓ Статистика и отчёты</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Главное приложение -->
+    <div id="app-screen" class="screen" style="display: none;">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="nav-content">
+                <div class="nav-left">
+                    <span class="nav-logo">🚗 Автопарк</span>
+                </div>
+                <div class="nav-right">
+                    <span id="user-name" class="user-name"></span>
+                    <span id="user-role" class="user-role badge"></span>
+                    <button id="logout-btn" class="btn btn-ghost btn-small">Выход</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Основной контент -->
+        <div class="main-content">
+            <!-- Боковое меню -->
+            <aside class="sidebar">
+                <div class="menu">
+                    <button class="menu-item active" data-page="dashboard">
+                        <span class="menu-icon">📊</span>
+                        <span class="menu-text">Главная</span>
+                    </button>
+                    <button class="menu-item" data-page="my-cars">
+                        <span class="menu-icon">🚘</span>
+                        <span class="menu-text">Мои авто</span>
+                    </button>
+                    <button class="menu-item" data-page="take-car">
+                        <span class="menu-icon">🔑</span>
+                        <span class="menu-text">Взять авто</span>
+                    </button>
+                    <button class="menu-item mechanic-only" data-page="maintenance" style="display: none;">
+                        <span class="menu-icon">🔧</span>
+                        <span class="menu-text">Обслуживание</span>
+                    </button>
+                    <button class="menu-item admin-only" data-page="admin" style="display: none;">
+                        <span class="menu-icon">👥</span>
+                        <span class="menu-text">Админ-панель</span>
+                    </button>
+                    <button class="menu-item admin-viewer-only" data-page="stats" style="display: none;">
+                        <span class="menu-icon">📈</span>
+                        <span class="menu-text">Статистика</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Страницы -->
+            <main class="page-content">
+                <!-- Главная страница -->
+                <div id="page-dashboard" class="page active">
+                    <h2 class="page-title">Добро пожаловать! 👋</h2>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">🚗</div>
+                            <div class="stat-value" id="stat-total-cars">0</div>
+                            <div class="stat-label">Всего автомобилей</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-value" id="stat-available-cars">0</div>
+                            <div class="stat-label">Доступно</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🔄</div>
+                            <div class="stat-value" id="stat-in-use-cars">0</div>
+                            <div class="stat-label">В использовании</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🔧</div>
+                            <div class="stat-value" id="stat-maintenance-cars">0</div>
+                            <div class="stat-label">На обслуживании</div>
+                        </div>
+                    </div>
+
+                    <div class="recent-activity">
+                        <h3>Недавняя активность</h3>
+                        <div id="recent-logs" class="activity-list"></div>
+                    </div>
+                </div>
+
+                <!-- Мои автомобили -->
+                <div id="page-my-cars" class="page">
+                    <h2 class="page-title">Мои автомобили 🚘</h2>
+                    <div id="my-cars-list" class="cars-grid"></div>
+                </div>
+
+                <!-- Взять автомобиль -->
+                <div id="page-take-car" class="page">
+                    <h2 class="page-title">Взять автомобиль 🔑</h2>
+                    
+                    <div class="available-cars">
+                        <h3>Доступные автомобили</h3>
+                        <div id="available-cars-list" class="cars-grid"></div>
+                    </div>
+
+                    <!-- Модальное окно для взятия авто -->
+                    <div id="take-car-modal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>Взять автомобиль</h3>
+                                <button class="modal-close">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="selected-car-info"></div>
+                                
+                                <div class="form-group">
+                                    <label>Количество бензина (литры)</label>
+                                    <input type="number" id="fuel-level" class="form-control" min="0" max="100" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Состояние автомобиля</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="car-condition" value="ok" checked>
+                                            <span>✅ Целое</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="car-condition" value="broken">
+                                            <span>❌ Поломанное</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div id="broken-car-fields" class="form-group" style="display: none;">
+                                    <label>Оценочная стоимость ремонта (₽)</label>
+                                    <input type="number" id="repair-cost" class="form-control" min="0">
+                                    
+                                    <label>Описание поломки</label>
+                                    <textarea id="damage-description" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button id="cancel-take-car" class="btn btn-ghost">Отмена</button>
+                                <button id="confirm-take-car" class="btn btn-primary">Взять автомобиль</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Обслуживание (для механиков) -->
+                <div id="page-maintenance" class="page">
+                    <h2 class="page-title">Обслуживание 🔧</h2>
+                    <div id="maintenance-cars-list" class="cars-grid"></div>
+
+                    <!-- Модальное окно обслуживания -->
+                    <div id="maintenance-modal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>Обслуживание автомобиля</h3>
+                                <button class="modal-close">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="maintenance-car-info"></div>
+                                
+                                <div class="form-group">
+                                    <label>Бензин ДО обслуживания (л)</label>
+                                    <input type="number" id="fuel-before" class="form-control" min="0" max="100">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Бензин ПОСЛЕ обслуживания (л)</label>
+                                    <input type="number" id="fuel-after" class="form-control" min="0" max="100">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Состояние</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="was-broken" value="no" checked>
+                                            <span>Не было поломок</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="was-broken" value="yes">
+                                            <span>Была поломка</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div id="repair-fields" style="display: none;">
+                                    <div class="form-group">
+                                        <label>Починил?</label>
+                                        <div class="radio-group">
+                                            <label class="radio-label">
+                                                <input type="radio" name="repaired" value="yes" checked>
+                                                <span>✅ Да</span>
+                                            </label>
+                                            <label class="radio-label">
+                                                <input type="radio" name="repaired" value="no">
+                                                <span>❌ Нет</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Примечания</label>
+                                    <textarea id="maintenance-notes" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button id="cancel-maintenance" class="btn btn-ghost">Отмена</button>
+                                <button id="confirm-maintenance" class="btn btn-primary">Завершить обслуживание</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Админ-панель -->
+                <div id="page-admin" class="page">
+                    <h2 class="page-title">Админ-панель 👥</h2>
+                    
+                    <div class="admin-tabs">
+                        <button class="tab-btn active" data-tab="users">Пользователи</button>
+                        <button class="tab-btn" data-tab="cars-admin">Автомобили</button>
+                        <button class="tab-btn" data-tab="penalties">Взыскания</button>
+                    </div>
+
+                    <!-- Вкладка: Пользователи -->
+                    <div id="tab-users" class="tab-content active">
+                        <div class="admin-section">
+                            <div class="section-header">
+                                <h3>Управление пользователями</h3>
+                            </div>
+                            <div id="users-list" class="table-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Вкладка: Автомобили -->
+                    <div id="tab-cars-admin" class="tab-content">
+                        <div class="admin-section">
+                            <div class="section-header">
+                                <h3>Управление автомобилями</h3>
+                                <button id="add-car-btn" class="btn btn-primary">+ Добавить авто</button>
+                            </div>
+                            <div id="admin-cars-list" class="table-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Вкладка: Взыскания -->
+                    <div id="tab-penalties" class="tab-content">
+                        <div class="admin-section">
+                            <div class="section-header">
+                                <h3>Взыскания</h3>
+                                <button id="add-penalty-btn" class="btn btn-warning">+ Выдать взыскание</button>
+                            </div>
+                            <div id="penalties-list" class="table-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Модальное окно для изменения роли -->
+                    <div id="role-modal" class="modal" style="display: none;">
+                        <div class="modal-content modal-small">
+                            <div class="modal-header">
+                                <h3>Изменить роль</h3>
+                                <button class="modal-close">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Пользователь</label>
+                                    <p id="role-change-user"></p>
+                                </div>
+                                <div class="form-group">
+                                    <label>Новая роль</label>
+                                    <select id="new-role" class="form-control">
+                                        <option value="driver">Водитель</option>
+                                        <option value="mechanic">Механик</option>
+                                        <option value="viewer">Наблюдатель</option>
+                                        <option value="admin">Администратор</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button id="cancel-role-change" class="btn btn-ghost">Отмена</button>
+                                <button id="confirm-role-change" class="btn btn-primary">Изменить</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Модальное окно для добавления взыскания -->
+                    <div id="penalty-modal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>Выдать взыскание</h3>
+                                <button class="modal-close">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Пользователь (VK ID)</label>
+                                    <input type="text" id="penalty-user-id" class="form-control" placeholder="Введите VK ID">
+                                </div>
+                                <div class="form-group">
+                                    <label>Автомобиль (ID)</label>
+                                    <input type="text" id="penalty-car-id" class="form-control" placeholder="Введите ID авто">
+                                </div>
+                                <div class="form-group">
+                                    <label>Причина</label>
+                                    <textarea id="penalty-reason" class="form-control" rows="3" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Сумма (₽)</label>
+                                    <input type="number" id="penalty-amount" class="form-control" min="0">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button id="cancel-penalty" class="btn btn-ghost">Отмена</button>
+                                <button id="confirm-penalty" class="btn btn-warning">Выдать</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Статистика -->
+                <div id="page-stats" class="page">
+                    <h2 class="page-title">Статистика 📈</h2>
+                    
+                    <div class="stats-tabs">
+                        <button class="tab-btn active" data-tab="logs">Все логи</button>
+                        <button class="tab-btn" data-tab="car-stats">По автомобилям</button>
+                        <button class="tab-btn" data-tab="user-stats">По пользователям</button>
+                    </div>
+
+                    <div id="tab-logs" class="tab-content active">
+                        <div id="all-logs" class="logs-container"></div>
+                    </div>
+
+                    <div id="tab-car-stats" class="tab-content">
+                        <div id="car-stats-content"></div>
+                    </div>
+
+                    <div id="tab-user-stats" class="tab-content">
+                        <div id="user-stats-content"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    <div id="notifications-container" class="notifications-container"></div>
+
+    <!-- Основной скрипт -->
+    <script src="app.js"></script>
+</body>
+</html>
