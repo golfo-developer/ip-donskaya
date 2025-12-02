@@ -36,6 +36,7 @@
         <!-- Навигация -->
         <nav class="nav-tabs" id="mainNav">
             <button class="nav-btn active" data-tab="cars">Автомобили</button>
+            <button class="nav-btn" data-tab="mycars">Мои авто</button>
             <button class="nav-btn" data-tab="users" style="display:none;">Пользователи</button>
             <button class="nav-btn" data-tab="maintenance" style="display:none;">Обслуживание</button>
             <button class="nav-btn" data-tab="statistics" style="display:none;">Статистика</button>
@@ -59,6 +60,15 @@
                 </div>
 
                 <div id="carsList" class="cards-grid"></div>
+            </div>
+
+            <!-- Вкладка: Пользователи -->
+            <!-- Вкладка: Мои авто -->
+            <div id="mycarsTab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Мои автомобили</h2>
+                </div>
+                <div id="myCarsList"></div>
             </div>
 
             <!-- Вкладка: Пользователи -->

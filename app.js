@@ -399,6 +399,9 @@ function switchTab(tabName) {
         case 'cars':
             loadCars();
             break;
+        case 'mycars':
+            loadMyCars();
+            break;
         case 'users':
             loadUsers();
             break;
@@ -548,6 +551,9 @@ async function loadCars() {
             query = query.eq('garage_type', currentGarageFilter);
         }
         
+        // ВАЖНО: Показываем только доступные автомобили
+        query = query.eq('is_available', true);
+        
         const { data: cars, error } = await query;
         
         if (error) throw error;
@@ -556,7 +562,8 @@ async function loadCars() {
             carsList.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">🚗</div>
-                    <p class="empty-state-text">Автомобили не найдены</p>
+                    <p class="empty-state-text">Нет доступных автомобилей</p>
+                    <p style="color: #9ca3af; font-size: 14px; margin-top: 10px;">Все автомобили заняты. Проверьте вкладку "Мои авто"</p>
                 </div>
             `;
             return;
@@ -647,6 +654,108 @@ async function loadCars() {
     } catch (error) {
         console.error('Ошибка загрузки автомобилей:', error);
         carsList.innerHTML = '<div class="empty-state"><p class="empty-state-text">Ошибка загрузки данных</p></div>';
+    }
+}
+
+// Загрузка моих автомобилей (в использовании)
+async function loadMyCars() {
+    const myCarsList = document.getElementById('myCarsList');
+    myCarsList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Загрузка...</p></div>';
+    
+    try {
+        // Получаем активные использования текущего пользователя
+        const { data: activeUsages, error: usageError } = await supabase
+            .from('car_usage')
+            .select(`
+                *,
+                cars (*)
+            `)
+            .eq('user_id', currentUser.id)
+            .is('returned_at', null);
+        
+        if (usageError) throw usageError;
+        
+        if (!activeUsages || activeUsages.length === 0) {
+            myCarsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🚗</div>
+                    <p class="empty-state-text">У вас нет взятых автомобилей</p>
+                    <p style="color: #9ca3af; font-size: 14px; margin-top: 10px;">Перейдите на вкладку "Автомобили" чтобы взять автомобиль</p>
+                </div>
+            `;
+            return;
+        }
+        
+        myCarsList.innerHTML = activeUsages.map(usage => {
+            const car = usage.cars;
+            if (!car) return '';
+            
+            const takenDate = new Date(usage.taken_at);
+            const hoursUsed = Math.floor((Date.now() - takenDate.getTime()) / (1000 * 60 * 60));
+            const minutesUsed = Math.floor((Date.now() - takenDate.getTime()) / (1000 * 60)) % 60;
+            
+            return `
+                <div class="car-card" style="border: 3px solid #667eea;">
+                    ${car.photo_url ? `
+                        <div style="width: 100%; height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 15px;">
+                            <img src="${car.photo_url}" alt="${car.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                    ` : ''}
+                    <div class="car-header">
+                        <div class="car-title">${car.name}</div>
+                        <span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">В ИСПОЛЬЗОВАНИИ</span>
+                    </div>
+                    <div class="car-info">
+                        <div class="car-info-row">
+                            <span class="car-info-label">Номер:</span>
+                            <span class="car-info-value">${car.license_plate}</span>
+                        </div>
+                        <div class="car-info-row">
+                            <span class="car-info-label">Цвет:</span>
+                            <span class="car-info-value">${car.color}</span>
+                        </div>
+                        <div class="car-info-row">
+                            <span class="car-info-label">Гараж:</span>
+                            <span class="car-info-value">${getGarageLabel(car.garage_type)}</span>
+                        </div>
+                        ${car.location ? `
+                        <div class="car-info-row">
+                            <span class="car-info-label">Место:</span>
+                            <span class="car-info-value">${car.location}</span>
+                        </div>
+                        ` : ''}
+                        <div class="car-info-row">
+                            <span class="car-info-label">Взято:</span>
+                            <span class="car-info-value">${takenDate.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div class="car-info-row">
+                            <span class="car-info-label">Использую:</span>
+                            <span class="car-info-value" style="color: #667eea; font-weight: 600;">
+                                ${hoursUsed > 0 ? `${hoursUsed} ч ` : ''}${minutesUsed} мин
+                            </span>
+                        </div>
+                        <div class="car-info-row">
+                            <span class="car-info-label">Топливо при взятии:</span>
+                            <span class="car-info-value">${usage.fuel_taken || 0} л</span>
+                        </div>
+                        ${car.is_damaged || usage.was_damaged_on_take ? `
+                        <div class="car-info-row">
+                            <span class="car-info-label">Повреждения:</span>
+                            <span class="car-info-value" style="color: #ef4444;">⚠️ Есть</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="car-actions" style="margin-top: 15px;">
+                        <button class="btn-primary" onclick="openReturnCarModal('${car.id}')" style="width: 100%;">
+                            Вернуть автомобиль
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Ошибка:', error);
+        myCarsList.innerHTML = '<div class="empty-state"><p class="empty-state-text">Ошибка загрузки данных</p></div>';
     }
 }
 
@@ -758,7 +867,14 @@ async function handleTakeCar(e) {
         
         closeModal('takeCarModal');
         loadCars();
-        alert('Автомобиль успешно взят!');
+        
+        // Если пользователь на вкладке "Мои авто", обновляем её
+        const activeTab = document.querySelector('.nav-btn.active');
+        if (activeTab && activeTab.dataset.tab === 'mycars') {
+            loadMyCars();
+        }
+        
+        alert('Автомобиль успешно взят! Перейдите на вкладку "Мои авто" чтобы вернуть его.');
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка при взятии автомобиля: ' + error.message);
@@ -847,6 +963,8 @@ async function handleReturnCar(e) {
         
         closeModal('returnCarModal');
         loadCars();
+        loadMyCars(); // Обновляем "Мои авто"
+        
         alert('Автомобиль успешно возвращен!');
     } catch (error) {
         console.error('Ошибка:', error);
@@ -958,6 +1076,33 @@ async function handleEditUser(e) {
     
     const highRoles = ['senior_manager', 'deputy_director', 'director'];
     
+    // Защита от самоповышения
+    if (selectedUserId === currentUser.id) {
+        const roleHierarchy = {
+            'user': 0,
+            'junior_staff': 1,
+            'senior_staff': 2,
+            'manager': 3,
+            'senior_manager': 4,
+            'deputy_director': 5,
+            'director': 6
+        };
+        
+        const currentRoleLevel = roleHierarchy[currentUser.role] || 0;
+        const newRoleLevel = roleHierarchy[role] || 0;
+        
+        if (newRoleLevel > currentRoleLevel) {
+            alert('⛔ Вы не можете повысить сами себя!\n\nПопросите другого администратора изменить вашу роль.');
+            return;
+        }
+        
+        // Запрещаем менять свою должность
+        if (highRoles.includes(role) && customPosition && currentUser.custom_position !== customPosition) {
+            alert('⛔ Вы не можете изменить свою индивидуальную должность!\n\nПопросите другого администратора.');
+            return;
+        }
+    }
+    
     try {
         const { error } = await supabase
             .from('users')
@@ -968,6 +1113,14 @@ async function handleEditUser(e) {
             .eq('id', selectedUserId);
         
         if (error) throw error;
+        
+        // Если изменили свою роль, обновляем currentUser
+        if (selectedUserId === currentUser.id) {
+            currentUser.role = role;
+            currentUser.custom_position = highRoles.includes(role) ? customPosition : null;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            setupNavigation(); // Обновляем навигацию с новыми правами
+        }
         
         closeModal('editUserModal');
         loadUsers();
