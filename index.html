@@ -138,6 +138,14 @@
                     <input type="number" name="state_cost" required>
                 </div>
                 <div class="form-group">
+                    <label>Фото автомобиля</label>
+                    <input type="file" name="photo" accept="image/*" id="carPhotoInput">
+                    <small>Или вставьте изображение из буфера обмена (Ctrl+V)</small>
+                    <div id="photoPreview" style="margin-top: 10px; display: none;">
+                        <img id="photoPreviewImg" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="form-group">
                     <label>Гараж</label>
                     <select name="garage_type">
                         <option value="general">Общий гараж</option>
