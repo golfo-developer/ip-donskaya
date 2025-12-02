@@ -313,14 +313,6 @@ body::before {
 }
 
 /* Content */
-main {
-    padding: 40px;
-    max-width: 1800px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 1;
-}
-
 .main-content {
     padding: 40px;
     max-width: 1800px;
@@ -335,45 +327,6 @@ main {
 }
 
 .tab-content.active {
-    display: block;
-}
-
-/* Sub-tabs для обслуживания */
-.sub-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 24px;
-    border-bottom: 2px solid var(--border);
-}
-
-.sub-tab-btn {
-    background: transparent;
-    border: none;
-    padding: 12px 20px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: var(--text-secondary);
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-}
-
-.sub-tab-btn:hover {
-    color: var(--text-primary);
-    background: rgba(99, 102, 241, 0.05);
-}
-
-.sub-tab-btn.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-}
-
-.subtab-content {
-    display: none;
-}
-
-.subtab-content.active {
     display: block;
 }
 
@@ -481,7 +434,6 @@ main {
 }
 
 /* Filters */
-.filter-buttons,
 .filter-section {
     display: flex;
     gap: 12px;
@@ -513,8 +465,7 @@ main {
 }
 
 /* Car Cards */
-.cars-grid,
-.cards-grid {
+.cars-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
     gap: 24px;
@@ -553,8 +504,7 @@ main {
 .car-card img {
     width: 100%;
     height: 200px;
-    object-fit: contain;
-    background: var(--bg-tertiary);
+    object-fit: cover;
 }
 
 .car-card > div {
@@ -605,8 +555,7 @@ main {
     font-size: 14px;
 }
 
-.car-status,
-.status-badge {
+.car-status {
     display: inline-block;
     padding: 6px 14px;
     border-radius: 8px;
@@ -621,12 +570,6 @@ main {
     border: 1px solid var(--success);
 }
 
-.status-unavailable {
-    background: rgba(245, 158, 11, 0.15);
-    color: var(--warning);
-    border: 1px solid var(--warning);
-}
-
 .status-in-use {
     background: rgba(245, 158, 11, 0.15);
     color: var(--warning);
@@ -639,14 +582,6 @@ main {
     border: 1px solid var(--danger);
 }
 
-.role-badge {
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
 .car-actions {
     display: flex;
     gap: 12px;
@@ -657,7 +592,7 @@ main {
 }
 
 /* Modal */
-.modal {
+.modal-overlay {
     display: none;
     position: fixed;
     top: 0;
@@ -672,8 +607,25 @@ main {
     padding: 20px;
 }
 
+.modal-overlay.active {
+    display: flex !important;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1001;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
 .modal.active {
-    display: flex;
+    display: block;
 }
 
 .modal-content {
@@ -681,10 +633,6 @@ main {
     border: 1px solid var(--border);
     border-radius: 24px;
     padding: 40px;
-    max-width: 600px;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
     animation: fadeIn 0.3s ease;
 }
 
@@ -873,11 +821,83 @@ tbody td {
     letter-spacing: 0.5px;
 }
 
-/* Statistics */
+/* Utilities */
+.hidden {
+    display: none !important;
+}
+
+.screen {
+    padding: 40px;
+}
+
+.main-content {
+    padding: 40px;
+}
+
+/* Checkbox Label */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+
+/* Sub-tabs */
+.sub-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sub-tab-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+}
+
+.sub-tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.sub-tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.subtab-content {
+    display: none;
+}
+
+.subtab-content.active {
+    display: block;
+}
+
+/* Filter Buttons */
+.filter-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+/* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
     margin-bottom: 32px;
 }
 
@@ -885,19 +905,12 @@ tbody td {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 24px;
+    padding: 30px;
     text-align: center;
-    transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--accent);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .stat-value {
-    font-size: 36px;
+    font-size: 48px;
     font-weight: 900;
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     -webkit-background-clip: text;
@@ -909,11 +922,39 @@ tbody td {
     color: var(--text-secondary);
     font-size: 14px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-/* Utilities */
-.hidden {
-    display: none !important;
+/* Role Badge */
+.role-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-unavailable {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+}
+
+/* Cards Grid */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 24px;
 }
 
 /* Scrollbar */
@@ -942,41 +983,40 @@ tbody td {
         gap: 20px;
         padding: 20px;
     }
-
+    
     .user-info {
         width: 100%;
         justify-content: space-between;
     }
-
+    
     .nav-tabs {
         padding: 0 20px;
     }
-
-    main {
+    
+    .main-content, .screen {
         padding: 20px;
     }
-
-    .main-content {
-        padding: 20px;
-    }
-
-    .cars-grid,
-    .cards-grid {
+    
+    .cars-grid, .cards-grid {
         grid-template-columns: 1fr;
     }
-
+    
     .tab-header {
         flex-direction: column;
         gap: 20px;
         align-items: flex-start;
     }
-
+    
     .search-row {
         grid-template-columns: 1fr;
     }
-
+    
     .modal-content {
         padding: 30px 24px;
+    }
+    
+    .modal {
+        max-width: 95%;
     }
 }
 
