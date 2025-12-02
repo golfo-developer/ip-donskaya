@@ -1691,3 +1691,20 @@ async function verifyParking(usageId, isCorrect) {
         alert('Ошибка при проверке парковки');
     }
 }
+
+// ==================== ЭКСПОРТ ФУНКЦИЙ В ГЛОБАЛЬНУЮ ОБЛАСТЬ ====================
+// Делаем функции доступными из HTML (для onclick и других атрибутов)
+
+window.logout = logout;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.openTakeCarModal = openTakeCarModal;
+window.handleTakeCar = handleTakeCar;
+window.openReturnCarModal = openReturnCarModal;
+window.handleReturnCar = handleReturnCar;
+window.openEditUserModal = openEditUserModal;
+window.handleEditUser = handleEditUser;
+window.viewUserHistory = viewUserHistory;
+window.openMaintenanceModal = openMaintenanceModal;
+window.handleMaintenance = handleMaintenance;
+window.verifyParking = verifyParking;
