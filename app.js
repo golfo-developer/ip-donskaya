@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
+    console.log('🚀 Инициализация приложения...');
     // Проверяем сохраненную сессию
     const savedUser = localStorage.getItem('currentUser');
     
@@ -526,56 +527,30 @@ function logout() {
 
 // Работа с модальными окнами
 function openModal(modalId) {
-    const overlay = document.getElementById('modalOverlay');
-    const modal = document.getElementById(modalId);
-    
-    if (overlay && modal) {
-        overlay.classList.remove('hidden');
-        modal.classList.remove('hidden');
-        modal.classList.add('active');
-    }
+    console.log('📂 Открытие модального окна:', modalId);
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    document.getElementById(modalId).classList.remove('hidden');
 }
 
 function closeModal(modalId) {
-    const overlay = document.getElementById('modalOverlay');
-    const modal = document.getElementById(modalId);
+    console.log('❌ Закрытие модального окна:', modalId);
+    document.getElementById('modalOverlay').classList.add('hidden');
+    document.getElementById(modalId).classList.add('hidden');
     
-    if (overlay && modal) {
-        overlay.classList.add('hidden');
-        modal.classList.remove('active');
-        modal.classList.add('hidden');
-        
-        // Сбрасываем формы
-        const form = modal.querySelector('form');
-        if (form) form.reset();
-        
-        // Скрываем превью фото если есть
-        const photoPreview = document.getElementById('photoPreview');
-        if (photoPreview) {
-            photoPreview.style.display = 'none';
-        }
-        selectedCarPhoto = null;
-    }
-}
-
-// Закрытие всех модальных окон
-function closeAllModals() {
-    document.querySelectorAll('.modal.active').forEach(modal => {
-        closeModal(modal.id);
-    });
+    // Сбрасываем формы
+    const modal = document.getElementById(modalId);
+    const form = modal.querySelector('form');
+    if (form) form.reset();
 }
 
 // Закрытие модального окна при клике на overlay
 document.addEventListener('click', (e) => {
     if (e.target.id === 'modalOverlay') {
-        closeAllModals();
-    }
-});
-
-// Закрытие модального окна при нажатии Escape
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        closeAllModals();
+        document.querySelectorAll('.modal').forEach(modal => {
+            if (!modal.classList.contains('hidden')) {
+                closeModal(modal.id);
+            }
+        });
     }
 });
 
@@ -676,7 +651,7 @@ async function loadCars() {
             return `
                 <div class="car-card ${!car.is_available ? 'unavailable' : ''} ${car.is_damaged ? 'damaged' : ''}">
                     ${car.photo_url ? `
-                        <div style="width: 100%; height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 15px;">
+                        <div style="width: 100%; height: 220px; overflow: hidden; border-radius: 10px; margin-bottom: 15px;">
                             <img src="${car.photo_url}" alt="${car.name}" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     ` : ''}
@@ -787,7 +762,7 @@ async function loadMyCars() {
             return `
                 <div class="car-card" style="border: 3px solid #667eea;">
                     ${car.photo_url ? `
-                        <div style="width: 100%; height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 15px;">
+                        <div style="width: 100%; height: 220px; overflow: hidden; border-radius: 10px; margin-bottom: 15px;">
                             <img src="${car.photo_url}" alt="${car.name}" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     ` : ''}
@@ -894,6 +869,7 @@ async function handleAddCar(e) {
 
 // Открыть модальное окно взятия автомобиля
 async function openTakeCarModal(carId) {
+    console.log('🚗 openTakeCarModal вызвана для carId:', carId);
     selectedCarId = carId;
     
     try {
@@ -921,6 +897,7 @@ async function openTakeCarModal(carId) {
 
 // Взять автомобиль
 async function handleTakeCar(e) {
+    console.log('✅ handleTakeCar вызвана');
     e.preventDefault();
     
     const formData = new FormData(e.target);
@@ -973,6 +950,7 @@ async function handleTakeCar(e) {
 
 // Открыть модальное окно возврата автомобиля
 async function openReturnCarModal(carId) {
+    console.log('🔙 openReturnCarModal вызвана для carId:', carId);
     selectedCarId = carId;
     
     try {
@@ -1246,81 +1224,90 @@ async function viewUserHistory(userId) {
         }
         
         // Создаем модальное окно для истории
-        const modalOverlay = document.createElement('div');
-        modalOverlay.className = 'modal-overlay active';
-        modalOverlay.id = 'historyModalOverlay';
-        modalOverlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px;';
-        
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        `;
+
         const modal = document.createElement('div');
-        modal.className = 'modal active';
-        modal.id = 'historyModal';
-        modal.style.cssText = 'display: block; position: relative;';
-        
+        modal.style.cssText = `
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        `;
+
         modal.innerHTML = `
-            <div class="modal-content">
-                <h3>История использования: ${user.first_name} ${user.last_name}</h3>
-                <div style="max-height: 500px; overflow-y: auto; margin-top: 20px;">
-                    <table style="width: 100%;">
-                        <thead>
-                            <tr>
-                                <th>Автомобиль</th>
-                                <th>Взято</th>
-                                <th>Возвращено</th>
-                                <th>Парковка</th>
-                                <th>Повреждения</th>
+            <h3 style="margin-bottom: 20px; color: #1f2937;">История использования: ${user.first_name} ${user.last_name}</h3>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f3f4f6;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Автомобиль</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Взято</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Возвращено</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Парковка</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Повреждения</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${usages.map(usage => `
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 12px;">
+                                    <div style="font-weight: 500; color: #1f2937;">${usage.cars?.name || 'Н/Д'}</div>
+                                    <div style="font-size: 12px; color: #6b7280;">${usage.cars?.license_plate || ''}</div>
+                                </td>
+                                <td style="padding: 12px; color: #4b5563;">${new Date(usage.taken_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                <td style="padding: 12px; color: #4b5563;">${usage.returned_at ? new Date(usage.returned_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '<span style="color: #f59e0b;">В использовании</span>'}</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    ${usage.parking_verified === null ? '<span style="color: #9ca3af;">Не проверено</span>' :
+                                      usage.parking_verified ? '<span style="color: #10b981; font-size: 18px;">✓</span>' :
+                                      '<span style="color: #ef4444; font-size: 18px;">✗</span>'}
+                                </td>
+                                <td style="padding: 12px; text-align: center;">
+                                    ${usage.was_damaged_on_take || usage.was_damaged_on_return ?
+                                        '<span style="color: #ef4444;">⚠️ Да</span>' :
+                                        '<span style="color: #10b981; font-size: 18px;">✓</span>'}
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${usages.map(usage => `
-                                <tr>
-                                    <td>
-                                        <div style="font-weight: 500;">${usage.cars?.name || 'Н/Д'}</div>
-                                        <div style="font-size: 12px; color: #666;">${usage.cars?.license_plate || ''}</div>
-                                    </td>
-                                    <td>${new Date(usage.taken_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                                    <td>${usage.returned_at ? new Date(usage.returned_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '<span style="color: #f59e0b;">В использовании</span>'}</td>
-                                    <td>
-                                        ${usage.parking_verified === null ? '<span style="color: #9ca3af;">Не проверено</span>' : 
-                                          usage.parking_verified ? '<span style="color: #10b981;">✓</span>' : 
-                                          '<span style="color: #ef4444;">✗ Неправильно</span>'}
-                                    </td>
-                                    <td>
-                                        ${usage.was_damaged_on_take || usage.was_damaged_on_return ? 
-                                            '<span style="color: #ef4444;">⚠️ Да</span>' : 
-                                            '<span style="color: #10b981;">✓ Нет</span>'}
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="modal-actions" style="margin-top: 20px;">
-                    <button type="button" class="btn-secondary" onclick="closeHistoryModal()">Закрыть</button>
-                </div>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 25px; text-align: right;">
+                <button type="button" class="btn-secondary" id="closeHistoryBtn">Закрыть</button>
             </div>
         `;
-        
-        modalOverlay.appendChild(modal);
-        document.body.appendChild(modalOverlay);
-        
-        // Закрытие при клике на overlay
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) {
-                closeHistoryModal();
-            }
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Обработчики закрытия
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        modal.querySelector('#closeHistoryBtn').addEventListener('click', () => {
+            overlay.remove();
         });
         
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка при загрузке истории');
-    }
-}
-
-// Функция закрытия модального окна истории
-function closeHistoryModal() {
-    const modalOverlay = document.getElementById('historyModalOverlay');
-    if (modalOverlay) {
-        modalOverlay.remove();
     }
 }
 
@@ -1738,3 +1725,27 @@ async function verifyParking(usageId, isCorrect) {
         alert('Ошибка при проверке парковки');
     }
 }
+
+// ==================== ЭКСПОРТ ФУНКЦИЙ В ГЛОБАЛЬНУЮ ОБЛАСТЬ ====================
+// Делаем функции доступными из HTML (для onclick и других атрибутов)
+
+window.logout = logout;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.openTakeCarModal = openTakeCarModal;
+window.handleTakeCar = handleTakeCar;
+window.openReturnCarModal = openReturnCarModal;
+window.handleReturnCar = handleReturnCar;
+window.openEditUserModal = openEditUserModal;
+window.handleEditUser = handleEditUser;
+window.viewUserHistory = viewUserHistory;
+window.openMaintenanceModal = openMaintenanceModal;
+window.handleMaintenance = handleMaintenance;
+window.verifyParking = verifyParking;
+window.handleAddCar = handleAddCar;
+window.handlePhotoSelect = handlePhotoSelect;
+window.handlePhotoPaste = handlePhotoPaste;
+window.switchTab = switchTab;
+
+// Отладка - выводим в консоль, что функции загружены
+console.log('✅ Все функции приложения загружены и доступны в window');
