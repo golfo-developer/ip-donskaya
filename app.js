@@ -61,36 +61,90 @@ function showLogin() {
                 })
                 .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, async (payload) => {
                     try {
-                        console.log('Login success payload:', payload);
+                        console.log('=== VK LOGIN SUCCESS ===');
+                        console.log('1. Payload:', JSON.stringify(payload, null, 2));
                         
                         const code = payload.code;
                         const deviceId = payload.device_id;
                         
+                        if (!code) {
+                            console.error('Нет кода авторизации в payload!');
+                            alert('Ошибка: не получен код авторизации от VK');
+                            return;
+                        }
+                        
+                        console.log('2. Получаем токен...');
+                        
                         // Получаем токен
                         const authData = await VKID.Auth.exchangeCode(code, deviceId);
-                        console.log('Auth data:', authData);
+                        console.log('3. Auth data:', JSON.stringify(authData, null, 2));
                         
-                        // Данные пользователя могут быть в разных местах
-                        let userData = null;
-                        
-                        if (authData.user) {
-                            userData = authData.user;
-                        } else if (payload.user) {
-                            userData = payload.user;
-                        } else if (authData.token && authData.token.user) {
-                            userData = authData.token.user;
+                        // Проверяем наличие данных
+                        if (!authData) {
+                            console.error('authData пустой!');
+                            alert('Ошибка: не удалось получить данные авторизации');
+                            return;
                         }
                         
-                        if (userData) {
-                            await handleVKAuth({ user: userData, token: authData.access_token });
-                        } else {
-                            // Пробуем получить из токена
-                            const userInfo = await getUserInfoFromToken(authData.access_token);
-                            await handleVKAuth(userInfo);
+                        // Пробуем найти данные пользователя в разных местах
+                        console.log('4. Ищем данные пользователя...');
+                        
+                        let finalUserData = null;
+                        
+                        // Вариант 1: authData.user
+                        if (authData.user && authData.user.id) {
+                            console.log('Найдено в authData.user');
+                            finalUserData = authData.user;
                         }
+                        // Вариант 2: payload.user
+                        else if (payload.user && payload.user.id) {
+                            console.log('Найдено в payload.user');
+                            finalUserData = payload.user;
+                        }
+                        // Вариант 3: authData напрямую содержит id
+                        else if (authData.id) {
+                            console.log('Найдено напрямую в authData');
+                            finalUserData = authData;
+                        }
+                        // Вариант 4: authData.token.user
+                        else if (authData.token && authData.token.user && authData.token.user.id) {
+                            console.log('Найдено в authData.token.user');
+                            finalUserData = authData.token.user;
+                        }
+                        // Вариант 5: используем VK API
+                        else if (authData.access_token) {
+                            console.log('Пробуем получить через VK API...');
+                            try {
+                                const apiData = await getUserInfoFromToken(authData.access_token);
+                                if (apiData && apiData.user) {
+                                    finalUserData = apiData.user;
+                                }
+                            } catch (apiError) {
+                                console.error('Ошибка VK API:', apiError);
+                            }
+                        }
+                        
+                        if (!finalUserData) {
+                            console.error('Не удалось найти данные пользователя ни в одном из мест!');
+                            console.error('authData:', authData);
+                            console.error('payload:', payload);
+                            alert('Ошибка: не удалось получить ваши данные от VK. Попробуйте войти снова или используйте другой браузер.');
+                            return;
+                        }
+                        
+                        console.log('5. Данные пользователя найдены:', finalUserData);
+                        
+                        // Передаем данные в обработчик
+                        await handleVKAuth({ 
+                            user: finalUserData, 
+                            token: authData.access_token || authData.token 
+                        });
+                        
                     } catch (error) {
-                        console.error('Ошибка авторизации:', error);
-                        alert('Ошибка авторизации. Попробуйте снова.');
+                        console.error('=== ОШИБКА АВТОРИЗАЦИИ ===');
+                        console.error('Error:', error);
+                        console.error('Stack:', error.stack);
+                        alert(`Ошибка авторизации: ${error.message}\n\nПопробуйте:\n1. Обновить страницу\n2. Очистить кэш (Ctrl+Shift+Delete)\n3. Использовать другой браузер`);
                     }
                 });
             }
@@ -138,7 +192,14 @@ async function getUserInfoFromToken(token) {
 // Обработка авторизации VK
 async function handleVKAuth(authData) {
     try {
-        console.log('VK Auth Data:', authData);
+        console.log('=== HANDLE VK AUTH ===');
+        console.log('Auth Data:', JSON.stringify(authData, null, 2));
+        
+        // Проверяем что authData существует
+        if (!authData) {
+            console.error('authData is null or undefined');
+            throw new Error('Данные авторизации не предоставлены');
+        }
         
         // VK ID SDK возвращает данные в разных форматах
         let userData = null;
@@ -148,27 +209,46 @@ async function handleVKAuth(authData) {
         
         // Пробуем найти данные пользователя
         if (authData.user) {
+            console.log('Используем authData.user');
             userData = authData.user;
         } else if (authData.id) {
+            console.log('Используем authData напрямую');
             userData = authData;
         }
         
         if (!userData) {
-            throw new Error('Не удалось получить данные пользователя из VK');
+            console.error('userData is null');
+            console.error('authData структура:', Object.keys(authData));
+            throw new Error('Не удалось найти объект пользователя в данных авторизации');
         }
         
-        // Получаем ID пользователя
-        vkUserId = (userData.id || userData.user_id || userData.vk_id);
-        if (!vkUserId) {
-            throw new Error('Не удалось получить VK ID пользователя');
+        console.log('User Data:', JSON.stringify(userData, null, 2));
+        
+        // Получаем ID пользователя - проверяем все возможные варианты
+        if (userData.id) {
+            vkUserId = userData.id;
+        } else if (userData.user_id) {
+            vkUserId = userData.user_id;
+        } else if (userData.vk_id) {
+            vkUserId = userData.vk_id;
+        } else if (userData.userId) {
+            vkUserId = userData.userId;
         }
+        
+        if (!vkUserId) {
+            console.error('Не найден ID пользователя');
+            console.error('Доступные поля userData:', Object.keys(userData));
+            throw new Error('Не удалось получить VK ID пользователя из данных');
+        }
+        
         vkUserId = vkUserId.toString();
+        console.log('VK User ID:', vkUserId);
         
         // Получаем имя и фамилию
-        firstName = userData.first_name || userData.firstName || 'Пользователь';
+        firstName = userData.first_name || userData.firstName || userData.name || 'Пользователь';
         lastName = userData.last_name || userData.lastName || '';
         
-        console.log('Extracted user data:', { vkUserId, firstName, lastName });
+        console.log('Extracted:', { vkUserId, firstName, lastName });
         
         // Проверяем, существует ли пользователь
         const { data: existingUser, error: fetchError } = await supabase
@@ -199,8 +279,12 @@ async function handleVKAuth(authData) {
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         showApp();
     } catch (error) {
-        console.error('Ошибка сохранения пользователя:', error);
-        alert('Ошибка при входе. Попробуйте снова.');
+        console.error('=== ОШИБКА В HANDLE VK AUTH ===');
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('Error object:', error);
+        
+        alert(`Ошибка при входе: ${error.message}\n\nДетали в консоли (F12)\n\nЧто попробовать:\n1. Обновите страницу\n2. Очистите кэш браузера\n3. Используйте другой браузер`);
     }
 }
 
