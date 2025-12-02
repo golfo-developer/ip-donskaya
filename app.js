@@ -322,6 +322,15 @@ function setupEventListeners() {
             const locationGroup = document.getElementById('locationGroup');
             locationGroup.style.display = garageTypeSelect.value === 'general' ? 'block' : 'none';
         });
+        
+        // Обработка загрузки фото через input
+        const photoInput = document.getElementById('carPhotoInput');
+        if (photoInput) {
+            photoInput.addEventListener('change', handlePhotoSelect);
+        }
+        
+        // Обработка вставки фото через Ctrl+V
+        addCarForm.addEventListener('paste', handlePhotoPaste);
     }
     
     // Форма взятия автомобиля
@@ -479,6 +488,54 @@ document.addEventListener('click', (e) => {
 
 // ==================== РАБОТА С АВТОМОБИЛЯМИ ====================
 
+// Глобальная переменная для хранения фото
+let selectedCarPhoto = null;
+
+// Обработка выбора фото через input
+function handlePhotoSelect(e) {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+        displayPhotoPreview(file);
+    }
+}
+
+// Обработка вставки фото через Ctrl+V
+function handlePhotoPaste(e) {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            displayPhotoPreview(file);
+            e.preventDefault();
+            break;
+        }
+    }
+}
+
+// Отображение превью фото
+function displayPhotoPreview(file) {
+    selectedCarPhoto = file;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('photoPreview');
+        const img = document.getElementById('photoPreviewImg');
+        img.src = e.target.result;
+        preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+// Конвертация фото в Base64
+async function convertPhotoToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 // Загрузка автомобилей
 async function loadCars() {
     const carsList = document.getElementById('carsList');
@@ -521,6 +578,11 @@ async function loadCars() {
             
             return `
                 <div class="car-card ${!car.is_available ? 'unavailable' : ''} ${car.is_damaged ? 'damaged' : ''}">
+                    ${car.photo_url ? `
+                        <div style="width: 100%; height: 150px; overflow: hidden; border-radius: 10px; margin-bottom: 15px;">
+                            <img src="${car.photo_url}" alt="${car.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                    ` : ''}
                     <div class="car-header">
                         <div class="car-title">${car.name}</div>
                         ${car.is_damaged ? '<span style="color: #f59e0b; font-size: 20px;">⚠️</span>' : ''}
@@ -593,6 +655,12 @@ async function handleAddCar(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
+    
+    let photoBase64 = null;
+    if (selectedCarPhoto) {
+        photoBase64 = await convertPhotoToBase64(selectedCarPhoto);
+    }
+    
     const carData = {
         name: formData.get('name'),
         license_plate: formData.get('license_plate'),
@@ -601,6 +669,7 @@ async function handleAddCar(e) {
         garage_type: formData.get('garage_type'),
         location: formData.get('location'),
         stages: formData.get('stages'),
+        photo_url: photoBase64,
         current_fuel_level: parseFloat(formData.get('fuel')) || 0,
         is_available: true,
         is_damaged: false
@@ -610,6 +679,10 @@ async function handleAddCar(e) {
         const { error } = await supabase.from('cars').insert([carData]);
         
         if (error) throw error;
+        
+        // Сбрасываем фото
+        selectedCarPhoto = null;
+        document.getElementById('photoPreview').style.display = 'none';
         
         closeModal('addCarModal');
         loadCars();
@@ -829,6 +902,7 @@ async function loadUsers() {
                             <td>${new Date(user.created_at).toLocaleDateString('ru-RU')}</td>
                             <td style="text-align: right;">
                                 <button class="btn-secondary" onclick="openEditUserModal('${user.id}')">Изменить</button>
+                                <button class="btn-secondary" onclick="viewUserHistory('${user.id}')" style="margin-left: 5px;">История</button>
                             </td>
                         </tr>
                     `).join('')}
@@ -901,6 +975,90 @@ async function handleEditUser(e) {
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка при обновлении пользователя: ' + error.message);
+    }
+}
+
+// Просмотр истории пользователя
+async function viewUserHistory(userId) {
+    try {
+        const { data: user } = await supabase
+            .from('users')
+            .select('first_name, last_name')
+            .eq('id', userId)
+            .single();
+        
+        const { data: usages } = await supabase
+            .from('car_usage')
+            .select(`
+                *,
+                cars (name, license_plate)
+            `)
+            .eq('user_id', userId)
+            .order('taken_at', { ascending: false })
+            .limit(50);
+        
+        if (!usages || usages.length === 0) {
+            alert(`У пользователя ${user.first_name} ${user.last_name} пока нет истории использования автомобилей`);
+            return;
+        }
+        
+        // Создаем модальное окно для истории
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal" style="display: block; max-width: 900px;">
+                <div class="modal-content">
+                    <h3>История использования: ${user.first_name} ${user.last_name}</h3>
+                    <div style="max-height: 500px; overflow-y: auto; margin-top: 20px;">
+                        <table style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th>Автомобиль</th>
+                                    <th>Взято</th>
+                                    <th>Возвращено</th>
+                                    <th>Парковка</th>
+                                    <th>Повреждения</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${usages.map(usage => `
+                                    <tr>
+                                        <td>
+                                            <div style="font-weight: 500;">${usage.cars?.name || 'Н/Д'}</div>
+                                            <div style="font-size: 12px; color: #666;">${usage.cars?.license_plate || ''}</div>
+                                        </td>
+                                        <td>${new Date(usage.taken_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                        <td>${usage.returned_at ? new Date(usage.returned_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '<span style="color: #f59e0b;">В использовании</span>'}</td>
+                                        <td>
+                                            ${usage.parking_verified === null ? '<span style="color: #9ca3af;">Не проверено</span>' : 
+                                              usage.parking_verified ? '<span style="color: #10b981;">✓</span>' : 
+                                              '<span style="color: #ef4444;">✗ Неправильно</span>'}
+                                        </td>
+                                        <td>
+                                            ${usage.was_damaged_on_take || usage.was_damaged_on_return ? 
+                                                '<span style="color: #ef4444;">⚠️ Да</span>' : 
+                                                '<span style="color: #10b981;">✓ Нет</span>'}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 20px;">
+                        <button type="button" class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Ошибка при загрузке истории');
     }
 }
 
@@ -1208,7 +1366,8 @@ async function loadVerification() {
                 cars (name, license_plate),
                 users (first_name, last_name)
             `)
-            .order('taken_at', { ascending: false })
+            .not('returned_at', 'is', null)
+            .order('returned_at', { ascending: false })
             .limit(100);
         
         if (error) throw error;
@@ -1225,34 +1384,53 @@ async function loadVerification() {
                         <tr>
                             <th>Автомобиль</th>
                             <th>Пользователь</th>
-                            <th>Взято</th>
                             <th>Возвращено</th>
-                            <th>Неправильных парковок</th>
+                            <th>Парковка</th>
                             <th>Повреждения</th>
+                            <th>Действия</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${usages.map(usage => `
+                        ${usages.map(usage => {
+                            let parkingStatus = '';
+                            if (usage.parking_verified === null) {
+                                parkingStatus = '<span style="color: #f59e0b;">⏳ Не проверено</span>';
+                            } else if (usage.parking_verified === true) {
+                                parkingStatus = '<span style="color: #10b981;">✓ Правильно</span>';
+                            } else {
+                                parkingStatus = '<span style="color: #ef4444;">✗ Неправильно</span>';
+                            }
+                            
+                            return `
                             <tr>
                                 <td>
                                     <div style="font-weight: 500;">${usage.cars?.name || 'Н/Д'}</div>
                                     <div style="font-size: 12px; color: #666;">${usage.cars?.license_plate || ''}</div>
                                 </td>
                                 <td>${usage.users?.first_name || ''} ${usage.users?.last_name || ''}</td>
-                                <td>${new Date(usage.taken_at).toLocaleString('ru-RU')}</td>
-                                <td>${usage.returned_at ? new Date(usage.returned_at).toLocaleString('ru-RU') : '<span style="color: #f59e0b;">В использовании</span>'}</td>
-                                <td style="text-align: center;">
-                                    ${usage.incorrect_parking_count > 0 ? 
-                                        `<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-weight: 600;">${usage.incorrect_parking_count}</span>` : 
-                                        '<span style="color: #10b981;">✓</span>'}
-                                </td>
+                                <td>${new Date(usage.returned_at).toLocaleString('ru-RU')}</td>
+                                <td>${parkingStatus}</td>
                                 <td>
                                     ${usage.was_damaged_on_take || usage.was_damaged_on_return ? 
                                         '<span style="color: #ef4444;">⚠️ Да</span>' : 
                                         '<span style="color: #10b981;">✓ Нет</span>'}
                                 </td>
+                                <td>
+                                    ${usage.parking_verified === null ? `
+                                        <button class="btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="verifyParking('${usage.id}', true)">
+                                            ✓
+                                        </button>
+                                        <button class="btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="verifyParking('${usage.id}', false)">
+                                            ✗
+                                        </button>
+                                    ` : `
+                                        <button class="btn-secondary" style="padding: 5px 10px; font-size: 12px;" onclick="verifyParking('${usage.id}', null)">
+                                            Сбросить
+                                        </button>
+                                    `}
+                                </td>
                             </tr>
-                        `).join('')}
+                        `}).join('')}
                     </tbody>
                 </table>
             </div>
@@ -1260,5 +1438,41 @@ async function loadVerification() {
     } catch (error) {
         console.error('Ошибка:', error);
         verificationContent.innerHTML = '<div class="empty-state"><p class="empty-state-text">Ошибка загрузки данных</p></div>';
+    }
+}
+
+// Проверка парковки
+async function verifyParking(usageId, isCorrect) {
+    try {
+        const updateData = {
+            parking_verified: isCorrect,
+            verified_by: currentUser.id,
+            verified_at: new Date().toISOString()
+        };
+        
+        // Если парковка неправильная, увеличиваем счетчик
+        if (isCorrect === false) {
+            const { data: usage } = await supabase
+                .from('car_usage')
+                .select('incorrect_parking_count')
+                .eq('id', usageId)
+                .single();
+            
+            if (usage) {
+                updateData.incorrect_parking_count = (usage.incorrect_parking_count || 0) + 1;
+            }
+        }
+        
+        const { error } = await supabase
+            .from('car_usage')
+            .update(updateData)
+            .eq('id', usageId);
+        
+        if (error) throw error;
+        
+        loadVerification();
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Ошибка при проверке парковки');
     }
 }
