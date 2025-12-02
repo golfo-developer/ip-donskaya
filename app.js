@@ -149,11 +149,9 @@ async function saveUserToDatabase(userData) {
         const vkUserId = userData.user_id.toString();
         const firstName = userData.first_name || 'Пользователь';
         const lastName = userData.last_name || '';
-        const avatarUrl = userData.avatar || '';
         
         console.log('VK User ID:', vkUserId);
         console.log('Имя:', firstName, lastName);
-        console.log('Аватар:', avatarUrl);
         
         // Проверяем, существует ли пользователь
         const { data: existingUser, error: fetchError } = await supabase
@@ -168,20 +166,7 @@ async function saveUserToDatabase(userData) {
         }
         
         if (existingUser) {
-            console.log('Пользователь уже существует, обновляем аватар...');
-            
-            // Обновляем аватар если он есть
-            if (avatarUrl) {
-                const { error: updateError } = await supabase
-                    .from('users')
-                    .update({ avatar_url: avatarUrl })
-                    .eq('id', existingUser.id);
-                
-                if (!updateError) {
-                    existingUser.avatar_url = avatarUrl;
-                }
-            }
-            
+            console.log('Пользователь уже существует:', existingUser);
             currentUser = existingUser;
         } else {
             console.log('Создаем нового пользователя...');
@@ -193,7 +178,6 @@ async function saveUserToDatabase(userData) {
                     vk_id: vkUserId,
                     first_name: firstName,
                     last_name: lastName,
-                    avatar_url: avatarUrl,
                     role: 'user'
                 }])
                 .select()
@@ -233,22 +217,10 @@ function showApp() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('appScreen').classList.remove('hidden');
     
-    // Отображаем имя пользователя с аватаром
+    // Отображаем имя пользователя
     const userName = document.getElementById('userName');
-    const displayName = `${currentUser.first_name} ${currentUser.last_name}`;
-    
-    if (currentUser.avatar_url) {
-        userName.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <img src="${currentUser.avatar_url}" 
-                     alt="${displayName}" 
-                     style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover;">
-                <span>${displayName}</span>
-            </div>
-        `;
-    } else {
-        userName.textContent = displayName;
-    }
+    const displayName = currentUser.custom_position || getRoleDisplayName(currentUser.role);
+    userName.textContent = `${currentUser.first_name} ${currentUser.last_name} - ${displayName}`;
     
     // Настраиваем навигацию в зависимости от роли
     setupNavigation();
@@ -284,40 +256,6 @@ function setupNavigation() {
     const addCarBtn = document.getElementById('addCarBtn');
     if (addCarBtn) {
         addCarBtn.style.display = isAdmin ? 'block' : 'none';
-    }
-    
-    // Обработчики бургер-меню
-    const burgerMenu = document.getElementById('burgerMenu');
-    const navTabs = document.getElementById('mainNav');
-    const navOverlay = document.getElementById('navOverlay');
-    
-    if (burgerMenu && navTabs && navOverlay) {
-        burgerMenu.addEventListener('click', () => {
-            burgerMenu.classList.toggle('active');
-            navTabs.classList.toggle('active');
-            navOverlay.classList.toggle('active');
-        });
-        
-        navOverlay.addEventListener('click', () => {
-            burgerMenu.classList.remove('active');
-            navTabs.classList.remove('active');
-            navOverlay.classList.remove('active');
-        });
-        
-        // Закрываем меню при клике на пункт
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                burgerMenu.classList.remove('active');
-                navTabs.classList.remove('active');
-                navOverlay.classList.remove('active');
-            });
-        });
-    }
-    
-    // Отображаем роль пользователя
-    const userRoleEl = document.getElementById('userRole');
-    if (userRoleEl) {
-        userRoleEl.textContent = getRoleDisplayName(currentUser.role);
     }
 }
 
