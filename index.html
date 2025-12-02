@@ -23,15 +23,24 @@
     <!-- Главное приложение -->
     <div id="appScreen" class="screen hidden">
         <!-- Заголовок -->
-        <header>
-            <div class="header-content">
-                <h1>🚗 Автопарк</h1>
-                <div class="user-info">
-                    <span id="userName"></span>
-                    <button onclick="logout()" class="btn-logout">Выход</button>
+        <header class="app-header">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="burger-menu" id="burgerMenu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                 </div>
+                <h1 class="app-title">🚗 Автопарк</h1>
+            </div>
+            <div class="user-info">
+                <span class="user-name" id="userName"></span>
+                <span class="user-role" id="userRole"></span>
+                <button onclick="logout()" class="btn-logout">Выход</button>
             </div>
         </header>
+        
+        <!-- Overlay для закрытия меню -->
+        <div class="nav-overlay" id="navOverlay"></div>
 
         <!-- Навигация -->
         <nav class="nav-tabs" id="mainNav">
@@ -212,18 +221,6 @@
                 <div class="form-group">
                     <label>Уровень топлива при возврате (л)</label>
                     <input type="number" step="0.1" name="fuel_returned" required>
-                </div>
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="was_damaged">
-                        Автомобиль был поврежден
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="incorrect_parking">
-                        Неправильная парковка
-                    </label>
                 </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn-primary">Вернуть</button>
