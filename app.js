@@ -149,9 +149,11 @@ async function saveUserToDatabase(userData) {
         const vkUserId = userData.user_id.toString();
         const firstName = userData.first_name || 'Пользователь';
         const lastName = userData.last_name || '';
+        const avatarUrl = userData.avatar || '';
         
         console.log('VK User ID:', vkUserId);
         console.log('Имя:', firstName, lastName);
+        console.log('Аватар:', avatarUrl);
         
         // Проверяем, существует ли пользователь
         const { data: existingUser, error: fetchError } = await supabase
@@ -166,7 +168,20 @@ async function saveUserToDatabase(userData) {
         }
         
         if (existingUser) {
-            console.log('Пользователь уже существует:', existingUser);
+            console.log('Пользователь уже существует, обновляем аватар...');
+            
+            // Обновляем аватар если он есть
+            if (avatarUrl) {
+                const { error: updateError } = await supabase
+                    .from('users')
+                    .update({ avatar_url: avatarUrl })
+                    .eq('id', existingUser.id);
+                
+                if (!updateError) {
+                    existingUser.avatar_url = avatarUrl;
+                }
+            }
+            
             currentUser = existingUser;
         } else {
             console.log('Создаем нового пользователя...');
@@ -178,6 +193,7 @@ async function saveUserToDatabase(userData) {
                     vk_id: vkUserId,
                     first_name: firstName,
                     last_name: lastName,
+                    avatar_url: avatarUrl,
                     role: 'user'
                 }])
                 .select()
@@ -217,10 +233,22 @@ function showApp() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('appScreen').classList.remove('hidden');
     
-    // Отображаем имя пользователя
+    // Отображаем имя пользователя с аватаром
     const userName = document.getElementById('userName');
-    const displayName = currentUser.custom_position || getRoleDisplayName(currentUser.role);
-    userName.textContent = `${currentUser.first_name} ${currentUser.last_name} - ${displayName}`;
+    const displayName = `${currentUser.first_name} ${currentUser.last_name}`;
+    
+    if (currentUser.avatar_url) {
+        userName.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="${currentUser.avatar_url}" 
+                     alt="${displayName}" 
+                     style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover;">
+                <span>${displayName}</span>
+            </div>
+        `;
+    } else {
+        userName.textContent = displayName;
+    }
     
     // Настраиваем навигацию в зависимости от роли
     setupNavigation();
@@ -256,6 +284,40 @@ function setupNavigation() {
     const addCarBtn = document.getElementById('addCarBtn');
     if (addCarBtn) {
         addCarBtn.style.display = isAdmin ? 'block' : 'none';
+    }
+    
+    // Обработчики бургер-меню
+    const burgerMenu = document.getElementById('burgerMenu');
+    const navTabs = document.getElementById('mainNav');
+    const navOverlay = document.getElementById('navOverlay');
+    
+    if (burgerMenu && navTabs && navOverlay) {
+        burgerMenu.addEventListener('click', () => {
+            burgerMenu.classList.toggle('active');
+            navTabs.classList.toggle('active');
+            navOverlay.classList.toggle('active');
+        });
+        
+        navOverlay.addEventListener('click', () => {
+            burgerMenu.classList.remove('active');
+            navTabs.classList.remove('active');
+            navOverlay.classList.remove('active');
+        });
+        
+        // Закрываем меню при клике на пункт
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                burgerMenu.classList.remove('active');
+                navTabs.classList.remove('active');
+                navOverlay.classList.remove('active');
+            });
+        });
+    }
+    
+    // Отображаем роль пользователя
+    const userRoleEl = document.getElementById('userRole');
+    if (userRoleEl) {
+        userRoleEl.textContent = getRoleDisplayName(currentUser.role);
     }
 }
 
@@ -464,28 +526,56 @@ function logout() {
 
 // Работа с модальными окнами
 function openModal(modalId) {
-    document.getElementById('modalOverlay').classList.remove('hidden');
-    document.getElementById(modalId).classList.remove('hidden');
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById(modalId);
+    
+    if (overlay && modal) {
+        overlay.classList.remove('hidden');
+        modal.classList.remove('hidden');
+        modal.classList.add('active');
+    }
 }
 
 function closeModal(modalId) {
-    document.getElementById('modalOverlay').classList.add('hidden');
-    document.getElementById(modalId).classList.add('hidden');
-    
-    // Сбрасываем формы
+    const overlay = document.getElementById('modalOverlay');
     const modal = document.getElementById(modalId);
-    const form = modal.querySelector('form');
-    if (form) form.reset();
+    
+    if (overlay && modal) {
+        overlay.classList.add('hidden');
+        modal.classList.remove('active');
+        modal.classList.add('hidden');
+        
+        // Сбрасываем формы
+        const form = modal.querySelector('form');
+        if (form) form.reset();
+        
+        // Скрываем превью фото если есть
+        const photoPreview = document.getElementById('photoPreview');
+        if (photoPreview) {
+            photoPreview.style.display = 'none';
+        }
+        selectedCarPhoto = null;
+    }
+}
+
+// Закрытие всех модальных окон
+function closeAllModals() {
+    document.querySelectorAll('.modal.active').forEach(modal => {
+        closeModal(modal.id);
+    });
 }
 
 // Закрытие модального окна при клике на overlay
 document.addEventListener('click', (e) => {
     if (e.target.id === 'modalOverlay') {
-        document.querySelectorAll('.modal').forEach(modal => {
-            if (!modal.classList.contains('hidden')) {
-                closeModal(modal.id);
-            }
-        });
+        closeAllModals();
+    }
+});
+
+// Закрытие модального окна при нажатии Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeAllModals();
     }
 });
 
@@ -1156,62 +1246,81 @@ async function viewUserHistory(userId) {
         }
         
         // Создаем модальное окно для истории
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'modal-overlay active';
+        modalOverlay.id = 'historyModalOverlay';
+        modalOverlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px;';
+        
         const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
+        modal.className = 'modal active';
+        modal.id = 'historyModal';
+        modal.style.cssText = 'display: block; position: relative;';
+        
         modal.innerHTML = `
-            <div class="modal" style="display: block; max-width: 900px;">
-                <div class="modal-content">
-                    <h3>История использования: ${user.first_name} ${user.last_name}</h3>
-                    <div style="max-height: 500px; overflow-y: auto; margin-top: 20px;">
-                        <table style="width: 100%;">
-                            <thead>
+            <div class="modal-content">
+                <h3>История использования: ${user.first_name} ${user.last_name}</h3>
+                <div style="max-height: 500px; overflow-y: auto; margin-top: 20px;">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Автомобиль</th>
+                                <th>Взято</th>
+                                <th>Возвращено</th>
+                                <th>Парковка</th>
+                                <th>Повреждения</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${usages.map(usage => `
                                 <tr>
-                                    <th>Автомобиль</th>
-                                    <th>Взято</th>
-                                    <th>Возвращено</th>
-                                    <th>Парковка</th>
-                                    <th>Повреждения</th>
+                                    <td>
+                                        <div style="font-weight: 500;">${usage.cars?.name || 'Н/Д'}</div>
+                                        <div style="font-size: 12px; color: #666;">${usage.cars?.license_plate || ''}</div>
+                                    </td>
+                                    <td>${new Date(usage.taken_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                    <td>${usage.returned_at ? new Date(usage.returned_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '<span style="color: #f59e0b;">В использовании</span>'}</td>
+                                    <td>
+                                        ${usage.parking_verified === null ? '<span style="color: #9ca3af;">Не проверено</span>' : 
+                                          usage.parking_verified ? '<span style="color: #10b981;">✓</span>' : 
+                                          '<span style="color: #ef4444;">✗ Неправильно</span>'}
+                                    </td>
+                                    <td>
+                                        ${usage.was_damaged_on_take || usage.was_damaged_on_return ? 
+                                            '<span style="color: #ef4444;">⚠️ Да</span>' : 
+                                            '<span style="color: #10b981;">✓ Нет</span>'}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${usages.map(usage => `
-                                    <tr>
-                                        <td>
-                                            <div style="font-weight: 500;">${usage.cars?.name || 'Н/Д'}</div>
-                                            <div style="font-size: 12px; color: #666;">${usage.cars?.license_plate || ''}</div>
-                                        </td>
-                                        <td>${new Date(usage.taken_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                                        <td>${usage.returned_at ? new Date(usage.returned_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '<span style="color: #f59e0b;">В использовании</span>'}</td>
-                                        <td>
-                                            ${usage.parking_verified === null ? '<span style="color: #9ca3af;">Не проверено</span>' : 
-                                              usage.parking_verified ? '<span style="color: #10b981;">✓</span>' : 
-                                              '<span style="color: #ef4444;">✗ Неправильно</span>'}
-                                        </td>
-                                        <td>
-                                            ${usage.was_damaged_on_take || usage.was_damaged_on_return ? 
-                                                '<span style="color: #ef4444;">⚠️ Да</span>' : 
-                                                '<span style="color: #10b981;">✓ Нет</span>'}
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="modal-actions" style="margin-top: 20px;">
-                        <button type="button" class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Закрыть</button>
-                    </div>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn-secondary" onclick="closeHistoryModal()">Закрыть</button>
                 </div>
             </div>
         `;
         
-        document.body.appendChild(modal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
+        modalOverlay.appendChild(modal);
+        document.body.appendChild(modalOverlay);
+        
+        // Закрытие при клике на overlay
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeHistoryModal();
+            }
         });
         
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка при загрузке истории');
+    }
+}
+
+// Функция закрытия модального окна истории
+function closeHistoryModal() {
+    const modalOverlay = document.getElementById('historyModalOverlay');
+    if (modalOverlay) {
+        modalOverlay.remove();
     }
 }
 
